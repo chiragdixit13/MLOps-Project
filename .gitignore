@@ -1,0 +1,8 @@
+venv/
+.venv/
+pycache/
+*.py[cod]
+.env
+mlflow.db
+mlruns/
+artifacts/
