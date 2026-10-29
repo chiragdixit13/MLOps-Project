@@ -91,15 +91,14 @@ with mlflow.start_run() as run:
     mlflow.log_metric("Test_MAE", best_mae)
     mlflow.log_metric("Test_R2", best_r2)
 
-    mlflow.sklearn.log_model(
-        sk_model=best_model,
-        name="best_model"
-    )
+    model_info = mlflow.sklearn.log_model(
+    sk_model=best_model,
+    name="best_model"
+)
 
-run_id=run.info.run_id
+model_uri = f"models:/{model_info.model_id}"
 
-model_uri=f"runs:/{run_id}/best_model"
-registered_model=mlflow.register_model(
+registered_model = mlflow.register_model(
     model_uri=model_uri,
     name="Diabetes-Prediction-Model"
 )
