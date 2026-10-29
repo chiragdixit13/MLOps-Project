@@ -10,10 +10,26 @@ app=FastAPI(title="Diabetes prediction API")
 mlflow.set_tracking_uri(
      "sqlite:///C:/Users/DELL/Documents/AIML_roadmap/MLOps/MLFLOW/mlflow.db"
 )
+import os
 
-model=mlflow.sklearn.load_model(
-    "models:/Diabetes-Prediction-Model/1"
+mlflow.set_tracking_uri(
+    os.getenv(
+        "MLFLOW_TRACKING_URI",
+        "sqlite:///C:/Users/DELL/Documents/AIML_roadmap/MLOps/MLFLOW/mlflow.db"
+    )
 )
+
+model = None
+
+def load_model():
+    global model
+
+    if model is None:
+        model = mlflow.sklearn.load_model(
+            "models:/Diabetes-Prediction-Model/1"
+        )
+
+    return model
 
 
 class PatientData(BaseModel):
@@ -39,7 +55,7 @@ def check():
 
 def predict(request:PatientData):
     features=[[request.age,request.sex,request.bmi,request.bp,request.s1,request.s2,request.s3,request.s4,request.s5,request.s6]]
-    prediction=model.predict(features)[0]
+    prediction = load_model().predict(features)[0]
     return{"prediction":round(float(prediction),2)
 
     }

@@ -1,7 +1,8 @@
 from fastapi.testclient import TestClient
-from app import app
+from unittest.mock import Mock
+import app
 
-client = TestClient(app)
+client = TestClient(app.app)
 
 
 def test_check_endpoint():
@@ -13,7 +14,10 @@ def test_check_endpoint():
     }
 
 
-def test_predict_endpoint():
+def test_predict_endpoint(monkeypatch):
+    fake_model=Mock()
+    fake_model.predict.return_value=[150.25]
+    monkeypatch.setattr(app,"load_model",lambda:fake_model)
     payload = {
         "age": 0.0380759,
         "sex": 0.0506801,
