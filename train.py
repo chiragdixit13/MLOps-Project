@@ -5,6 +5,7 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error,r2_score
 import mlflow
 import mlflow.sklearn
+from sklearn.model_selection import cross_val_score
 
 mlflow.set_experiment("Diabetes_Model_Comparison")
 
@@ -24,6 +25,19 @@ X_train,X_test,y_train,y_test=train_test_split(X,y,
 
 model=LinearRegression()
 model2=Ridge()
+# 5-fold cross-validation
+
+lr_score=cross_val_score(
+    model,X_train,y_train,cv=5,scoring="neg_mean_absolute_error"
+)
+ridge_score=cross_val_score(
+    model2,X_train,y_train,cv=5,scoring="neg_mean_absolute_error"
+)
+lr_cv_mae=-lr_score.mean()
+ridge_cv_mae=-ridge_score.mean()
+
+print("Linear Regression CV MAE:",lr_cv_mae)
+print("Ridge cv mae",ridge_cv_mae)
 
 # training
 model.fit(X_train,y_train)
@@ -50,24 +64,46 @@ print("r2 for lr",r2)
 print("r2 for ridge",r2_ridge)
 
 
-with mlflow.start_run():
-    mlflow.log_param("model","LinearRegression")
-    mlflow.log_metric("MAE",mae)
-    mlflow.log_metric("R2",r2)
-    mlflow.sklearn.log_model(sk_model=model,name="linear_regression_model")    
+# 1. Select using cross-validation
+if lr_cv_mae < ridge_cv_mae:
+    best_model = model
+    best_model_name = "LinearRegression"
+    best_cv_mae = lr_cv_mae
+    best_mae = mae
+    best_r2 = r2
+else:
+    best_model = model2
+    best_model_name = "Ridge"
+    best_cv_mae = ridge_cv_mae
+    best_mae = mae_ridge
+    best_r2 = r2_ridge
 
-with mlflow.start_run  ():
-    mlflow.log_param("model_ridge","Ridge")
-    mlflow.log_metric("MAE",mae_ridge)
-    mlflow.log_metric("R2",r2_ridge) 
-    mlflow.sklearn.log_model(sk_model=model2,name="ridge_model")     
-model_uri = "runs:/3f822d3e4dff48b988f95798a87a4c9d/ridge_model"
+# 2. Performance gate using held-out test metrics
+if best_mae < 45 and best_r2 > 0.40:
+    print("Model passed performance checks")
+else:
+    raise ValueError("Model failed performance checks")
 
-mlflow.register_model(
+# 3. Log model selection and evaluation in MLflow
+with mlflow.start_run() as run:
+    mlflow.log_param("model", best_model_name)
+    mlflow.log_metric("CV_MAE", best_cv_mae)
+    mlflow.log_metric("Test_MAE", best_mae)
+    mlflow.log_metric("Test_R2", best_r2)
+
+    mlflow.sklearn.log_model(
+        sk_model=best_model,
+        name="best_model"
+    )
+
+run_id=run.info.run_id
+
+model_uri=f"runs:/{run_id}/best_model"
+registered_model=mlflow.register_model(
     model_uri=model_uri,
     name="Diabetes-Prediction-Model"
 )
-model_uri = "models:/Diabetes-Prediction-Model/1"
+model_uri = f"models:/Diabetes-Prediction-Model/{registered_model.version}"
 loaded_model=mlflow.sklearn.load_model(model_uri)
 
 
